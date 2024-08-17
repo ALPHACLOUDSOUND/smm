@@ -19,7 +19,16 @@ logger = logging.getLogger(__name__)
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Welcome to the SMM Bot! Use the commands or inline mode to interact.')
+    welcome_message = (
+        "Welcome to the SMM Bot! Use the commands or inline mode to interact.\n\n"
+        "Here are the available commands:\n"
+        "/order <service_id> <link> <quantity> - Place an order\n"
+        "/status <order_id> - Check order status\n"
+        "/balance - Check your balance\n"
+        "/cancel <order_ids_comma_separated> - Cancel orders\n"
+        "/services - List all services"
+    )
+    await update.message.reply_text(welcome_message)
 
 # Function to fetch services list from the API
 def fetch_services():
