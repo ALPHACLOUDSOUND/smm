@@ -2,7 +2,7 @@ import logging
 import requests
 from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, InlineQueryHandler, CallbackContext
-from telegram.utils.helpers import escape_markdown
+from telegram.helpers import escape_markdown
 import uuid
 
 # Telegram Bot Token
