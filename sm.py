@@ -1,7 +1,7 @@
 import logging
 import requests
 from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Updater, CommandHandler, InlineQueryHandler, CallbackContext
+from telegram.ext import Application, CommandHandler, InlineQueryHandler, CallbackContext
 from telegram.helpers import escape_markdown
 import uuid
 
@@ -18,8 +18,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Command handler for /start
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Welcome to the SMM Bot! Use the commands or inline mode to interact.')
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text('Welcome to the SMM Bot! Use the commands or inline mode to interact.')
 
 # Function to fetch services list from the API
 def fetch_services():
@@ -34,11 +34,11 @@ def fetch_services():
         return None
 
 # Function to place an order
-def place_order(update: Update, context: CallbackContext) -> None:
+async def place_order(update: Update, context: CallbackContext) -> None:
     args = context.args
 
     if len(args) < 3:
-        update.message.reply_text('Usage: /order <service_id> <link> <quantity>')
+        await update.message.reply_text('Usage: /order <service_id> <link> <quantity>')
         return
 
     service_id = args[0]
@@ -58,20 +58,19 @@ def place_order(update: Update, context: CallbackContext) -> None:
         response_data = response.json()
 
         if "order" in response_data:
-            update.message.reply_text(f'Order placed successfully! Order ID: {response_data["order"]}')
+            await update.message.reply_text(f'Order placed successfully! Order ID: {response_data["order"]}')
         else:
-            update.message.reply_text(f'Failed to place order: {response_data.get("error", "Unknown error")}')
-
+            await update.message.reply_text(f'Failed to place order: {response_data.get("error", "Unknown error")}')
     except Exception as e:
         logger.error(f'Error placing order: {e}')
-        update.message.reply_text('An error occurred while placing the order.')
+        await update.message.reply_text('An error occurred while placing the order.')
 
 # Function to check order status
-def check_status(update: Update, context: CallbackContext) -> None:
+async def check_status(update: Update, context: CallbackContext) -> None:
     args = context.args
 
     if len(args) < 1:
-        update.message.reply_text('Usage: /status <order_id>')
+        await update.message.reply_text('Usage: /status <order_id>')
         return
 
     order_id = args[0]
@@ -87,7 +86,7 @@ def check_status(update: Update, context: CallbackContext) -> None:
         response_data = response.json()
 
         if "status" in response_data:
-            update.message.reply_text(
+            await update.message.reply_text(
                 f"Order Status: {response_data['status']}\n"
                 f"Charge: {response_data['charge']}\n"
                 f"Start Count: {response_data['start_count']}\n"
@@ -95,14 +94,13 @@ def check_status(update: Update, context: CallbackContext) -> None:
                 f"Currency: {response_data['currency']}"
             )
         else:
-            update.message.reply_text(f'Failed to retrieve status: {response_data.get("error", "Unknown error")}')
-
+            await update.message.reply_text(f'Failed to retrieve status: {response_data.get("error", "Unknown error")}')
     except Exception as e:
         logger.error(f'Error checking status: {e}')
-        update.message.reply_text('An error occurred while checking the status.')
+        await update.message.reply_text('An error occurred while checking the status.')
 
 # Function to get balance
-def check_balance(update: Update, context: CallbackContext) -> None:
+async def check_balance(update: Update, context: CallbackContext) -> None:
     try:
         response = requests.post(SMM_API_URL, data={
             'key': SMM_API_KEY,
@@ -111,20 +109,19 @@ def check_balance(update: Update, context: CallbackContext) -> None:
         balance_info = response.json()
 
         if 'balance' in balance_info:
-            update.message.reply_text(f"Your balance is: ${balance_info['balance']} {balance_info['currency']}")
+            await update.message.reply_text(f"Your balance is: ${balance_info['balance']} {balance_info['currency']}")
         else:
-            update.message.reply_text("Failed to retrieve balance.")
-
+            await update.message.reply_text("Failed to retrieve balance.")
     except Exception as e:
         logger.error(f"Error fetching balance: {e}")
-        update.message.reply_text("An error occurred while retrieving balance.")
+        await update.message.reply_text("An error occurred while retrieving balance.")
 
 # Function to cancel orders
-def cancel_orders(update: Update, context: CallbackContext) -> None:
+async def cancel_orders(update: Update, context: CallbackContext) -> None:
     args = context.args
 
     if len(args) < 1:
-        update.message.reply_text('Usage: /cancel <order_ids_comma_separated>')
+        await update.message.reply_text('Usage: /cancel <order_ids_comma_separated>')
         return
 
     orders = args[0]
@@ -146,14 +143,13 @@ def cancel_orders(update: Update, context: CallbackContext) -> None:
             else:
                 results.append(f"Order {order['order']}: {order['cancel'].get('error', 'Unknown error')}")
 
-        update.message.reply_text("\n".join(results))
-
+        await update.message.reply_text("\n".join(results))
     except Exception as e:
         logger.error(f"Error canceling orders: {e}")
-        update.message.reply_text("An error occurred while canceling orders.")
+        await update.message.reply_text("An error occurred while canceling orders.")
 
 # Inline query handler
-def inline_query(update: Update, context: CallbackContext) -> None:
+async def inline_query(update: Update, context: CallbackContext) -> None:
     query = update.inline_query.query.lower()
     results = []
 
@@ -200,30 +196,24 @@ def inline_query(update: Update, context: CallbackContext) -> None:
             )
         )
 
-    update.inline_query.answer(results)
+    await update.inline_query.answer(results)
 
 def main() -> None:
-    # Create the Updater and pass it your bot's token.
-    updater = Updater(TELEGRAM_TOKEN)
-
-    # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
+    # Create the Application and pass it your bot's token.
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
     # Register command handlers
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("order", place_order))
-    dispatcher.add_handler(CommandHandler("status", check_status))
-    dispatcher.add_handler(CommandHandler("balance", check_balance))
-    dispatcher.add_handler(CommandHandler("cancel", cancel_orders))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("order", place_order))
+    application.add_handler(CommandHandler("status", check_status))
+    application.add_handler(CommandHandler("balance", check_balance))
+    application.add_handler(CommandHandler("cancel", cancel_orders))
 
     # Register the inline query handler
-    dispatcher.add_handler(InlineQueryHandler(inline_query))
+    application.add_handler(InlineQueryHandler(inline_query))
 
     # Start the Bot
-    updater.start_polling()
-
-    # Run the bot until you send a signal to stop
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
